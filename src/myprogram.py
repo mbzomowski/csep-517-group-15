@@ -1,20 +1,8 @@
 #!/usr/bin/env python
 import os
-import sys
+import string
 import random
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
-from datasets import load_dataset
-import subprocess
-import pickle
-import torch
-
-# script_dir  = os.path.dirname(__file__)
-# project_root = os.path.abspath(os.path.join(script_dir, os.pardir))
-# if project_root not in sys.path:
-#     sys.path.insert(0, project_root)
-
-# from model import GPT, GPTConfig
-
 
 
 class MyModel:
@@ -37,6 +25,7 @@ class MyModel:
                 inp = line[:-1]  # the last character is a newline
                 data.append(inp)
         return data
+
     @classmethod
     def write_pred(cls, preds, fname):
         with open(fname, 'wt') as f:
@@ -44,111 +33,18 @@ class MyModel:
                 f.write('{}\n'.format(p))
 
     def run_train(self, data, work_dir):
-        os.makedirs(work_dir, exist_ok=True)
-        cmd = [
-            "python", "train.py",
-            "config/train_flores_eng_char.py",
-            f"--out_dir={work_dir}",
-            "--device=cpu",
-            "--compile=False",
-            "--batch_size=12",
-            "--block_size=128",
-            "--max_iters=200",
-            "--eval_interval=200",
-            "--dataset=flores"
-        ]
-        print("Running training:", " ".join(cmd))
-        subprocess.run(cmd, check=True)
+        # your code here
+        pass
 
     def run_pred(self, data):
-        import os, sys, pickle, torch
-
-        here       = os.path.dirname(__file__)                    
-        project    = os.path.abspath(os.path.join(here, os.pardir))  
-        if project not in sys.path:
-            sys.path.insert(0, project)
-        from model import GPT, GPTConfig
-
-        # Try multiple possible locations for meta.pkl and checkpoint
-        # Order matters - first check internal Docker paths, then fall back to relative paths
-        possible_meta_paths = [
-            "/job/data/flores/meta.pkl",   # Check mounted volume first
-            "/job/meta.pkl",               # Check root directory
-            "data/flores/meta.pkl",        # Check relative path
-            "../data/flores/meta.pkl"      # Check relative path from src dir
-        ]
-        
-        meta_path = None
-        for path in possible_meta_paths:
-            if os.path.exists(path):
-                meta_path = path
-                print(f"Found meta.pkl at: {meta_path}")
-                break
-                
-        if meta_path is None:
-            raise FileNotFoundError("Could not find meta.pkl in any of the expected locations")
-            
-        possible_ckpt_paths = [
-            "/job/out-flores-eng/ckpt.pt",  # Check Docker path
-            "/job/ckpt.pt",                 # Check root directory
-            "out-flores-eng/ckpt.pt",       # Check relative path
-            "../out-flores-eng/ckpt.pt"     # Check relative path from src dir
-        ]
-        
-        ckpt_path = None
-        for path in possible_ckpt_paths:
-            if os.path.exists(path):
-                ckpt_path = path
-                print(f"Found ckpt.pt at: {ckpt_path}")
-                break
-                
-        if ckpt_path is None:
-            raise FileNotFoundError("Could not find ckpt.pt in any of the expected locations")
-
-
-        # 1) load vocab mappings
-        with open(meta_path, "rb") as f:
-            meta = pickle.load(f)
-        stoi = meta["stoi"]   # char → idx
-        itos = meta["itos"]   # idx  → char
-
-        # 2) load checkpoint and rebuild model
-        ckpt = torch.load(ckpt_path, map_location="cpu")
-        model = GPT(GPTConfig(**ckpt["model_args"]))
-        
-        # Fix the state dict keys by removing '_orig_mod' prefix
-        state_dict = ckpt["model"]
-        unwanted_prefix = '_orig_mod.'
-        for k, v in list(state_dict.items()):
-            if k.startswith(unwanted_prefix):
-                state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
-                
-        model.load_state_dict(state_dict)
-        model.eval()
-
+        # your code here
         preds = []
-        with torch.no_grad():
-            for line in data:
-                # encode the input string
-                x = torch.tensor([stoi.get(c, 0) for c in line], dtype=torch.long)[None, :]
-                
-                # get logits for next character only
-                logits, _ = model(x)  # model returns (logits, loss)
-                logits = logits[:, -1, :]  # shape: (1, vocab_size)
-                
-                # get top 3 most likely next characters
-                probs = torch.nn.functional.softmax(logits, dim=-1)
-                top_k = 3
-                v, ix = torch.topk(probs, k=top_k)
-                
-                # convert to characters and join
-                next_chars = [itos[i] for i in ix[0].tolist()]
-                pred = ''.join(next_chars)
-                preds.append(pred)
-
+        all_chars = string.ascii_letters
+        for inp in data:
+            # this model just predicts a random character each time
+            top_guesses = [random.choice(all_chars) for _ in range(3)]
+            preds.append(''.join(top_guesses))
         return preds
-
-    
 
     def save(self, work_dir):
         # your code here
@@ -160,29 +56,42 @@ class MyModel:
     def load(cls, work_dir):
         # your code here
         # this particular model has nothing to load, but for demonstration purposes we will load a blank file
-        inst = MyModel()
-        inst.work_dir = work_dir    # ← we save it on the instance
-        return inst
+        with open(os.path.join(work_dir, 'model.checkpoint')) as f:
+            dummy_save = f.read()
+        return MyModel()
 
 
 if __name__ == '__main__':
     parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
-    parser.add_argument('mode', choices=('train','test'))
-    parser.add_argument('--work_dir',    default='work')
-    parser.add_argument('--test_data',   default='example/input.txt')
-    parser.add_argument('--test_output', default='pred.txt')
+    parser.add_argument('mode', choices=('train', 'test'), help='what to run')
+    parser.add_argument('--work_dir', help='where to save', default='work')
+    parser.add_argument('--test_data', help='path to test data', default='example/input.txt')
+    parser.add_argument('--test_output', help='path to write test predictions', default='pred.txt')
     args = parser.parse_args()
 
     random.seed(0)
 
     if args.mode == 'train':
-        os.makedirs(args.work_dir, exist_ok=True)
+        if not os.path.isdir(args.work_dir):
+            print('Making working directory {}'.format(args.work_dir))
+            os.makedirs(args.work_dir)
+        print('Instatiating model')
         model = MyModel()
-        train_data = model.load_training_data()
+        print('Loading training data')
+        train_data = MyModel.load_training_data()
+        print('Training')
         model.run_train(train_data, args.work_dir)
-    else:
+        print('Saving model')
+        model.save(args.work_dir)
+    elif args.mode == 'test':
+        print('Loading model')
         model = MyModel.load(args.work_dir)
-        test_data = model.load_test_data(args.test_data)
-        preds     = model.run_pred(test_data)
-        assert len(preds)==len(test_data)
-        model.write_pred(preds, args.test_output)
+        print('Loading test data from {}'.format(args.test_data))
+        test_data = MyModel.load_test_data(args.test_data)
+        print('Making predictions')
+        pred = model.run_pred(test_data)
+        print('Writing predictions to {}'.format(args.test_output))
+        assert len(pred) == len(test_data), 'Expected {} predictions but got {}'.format(len(test_data), len(pred))
+        model.write_pred(pred, args.test_output)
+    else:
+        raise NotImplementedError('Unknown mode {}'.format(args.mode))
