@@ -39,3 +39,19 @@ python sample.py \
   --device=cpu    
 ```
 
+### Training the model using `myprogram.py` script
+- Make sure the data is downloaded and you have run the prepare step
+
+```bash
+python src/myprogram.py train --work_dir=out-flores-eng
+```
+> Values are hardcoded for now. Need to make this dynamic.
+
+### Predicting using `myprogram.py` script
+
+```bash
+python src/myprogram.py test --work_dir work --test_data example/input.txt --test_output pred.txt```
+```
+> Values are hardcoded for now. Need to make this dynamic.
+
+
