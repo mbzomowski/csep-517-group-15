@@ -3,6 +3,7 @@ import os
 import string
 import random
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+from datasets import load_dataset
 
 
 class MyModel:
@@ -25,7 +26,6 @@ class MyModel:
                 inp = line[:-1]  # the last character is a newline
                 data.append(inp)
         return data
-
     @classmethod
     def write_pred(cls, preds, fname):
         with open(fname, 'wt') as f:
