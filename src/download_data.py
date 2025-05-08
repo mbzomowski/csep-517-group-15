@@ -43,10 +43,10 @@ def normalize_text(text: str) -> str:
     """
     if not text or not isinstance(text, str):
         return ""
-    
+
     # Normalize to NFC form
     text = unicodedata.normalize('NFC', text)
-    
+
     # Remove excessive whitespace
     text = " ".join(text.split())
 
@@ -145,20 +145,20 @@ def get_flores_language_mapping() -> Dict[str, str]:
 def download_flores(iso_languages: List[str] = None):
     """
     Download and process FLORES-200 dataset.
-    
+
     Args:
         iso_languages: List of ISO language codes to download. If None, download all languages.
     """
     logger.info("Downloading FLORES-200 dataset...")
-    
+
     try:
         # Create flores subdirectory if it doesn't exist
         flores_dir = os.path.join(OUTPUT_DIR, "flores")
         os.makedirs(flores_dir, exist_ok=True)
-        
+
         # Get language mapping
         lang_mapping = get_flores_language_mapping()
-        
+
         # Filter languages if specified
         if iso_languages:
             # Only keep languages that are in the mapping
@@ -167,30 +167,30 @@ def download_flores(iso_languages: List[str] = None):
                 logger.error(f"None of the specified languages {iso_languages} found in FLORES mapping")
                 return
             lang_mapping = filtered_mapping
-        
+
         # Load FLORES dataset
         logger.info("Loading FLORES dataset...")
-        flores = load_dataset("facebook/flores", "all")
+        flores = load_dataset("facebook/flores", "all", trust_remote_code=True)
         logger.info(f"FLORES dataset loaded. Available splits: {flores.keys()}")
-        
+
         # Get a sample item to check the structure
         sample_item = next(iter(flores['dev']))
         logger.info(f"Sample item keys: {list(sample_item.keys())}")
-        
+
         # Process each language in the mapping
         for iso_code, flores_code in lang_mapping.items():
             # Use the FLORES code for the filename
             output_file = os.path.join(flores_dir, f"{flores_code}.txt")
             logger.info(f"Processing FLORES-200 for {iso_code} ({flores_code})...")
-            
+
             # Construct the key for this language in the dataset
             lang_key = f'sentence_{flores_code}'
-            
+
             # Check if the key exists in the sample item
             if lang_key not in sample_item:
                 logger.warning(f"Key '{lang_key}' not found in FLORES dataset. Available keys: {list(sample_item.keys())}")
                 continue
-            
+
             count = 0
             with open(output_file, 'w', encoding='utf-8') as f:
                 # Process all available splits
@@ -203,20 +203,20 @@ def download_flores(iso_languages: List[str] = None):
                                 if text:
                                     f.write(f"{text}\n")
                                     count += 1
-                                    
+
                                     if count % 1000 == 0:
                                         logger.info(f"Processed {count} sentences for {flores_code}")
                         except Exception as e:
                             logger.warning(f"Error processing item for {flores_code}: {e}")
                             continue
-            
+
             logger.info(f"Saved {count} FLORES-200 sentences to {output_file}")
-            
+
             # Verify the file was created and has content
             if os.path.exists(output_file):
                 file_size = os.path.getsize(output_file)
                 logger.info(f"File {output_file} created with size: {file_size} bytes")
-                
+
                 # Read a few lines to verify content
                 if count > 0:
                     with open(output_file, 'r', encoding='utf-8') as f:
@@ -224,7 +224,7 @@ def download_flores(iso_languages: List[str] = None):
                         logger.info(f"Sample content for {flores_code}: {first_lines}")
             else:
                 logger.error(f"File {output_file} was not created!")
-    
+
     except Exception as e:
         logger.error(f"Error downloading FLORES-200: {e}")
         import traceback
@@ -232,32 +232,32 @@ def download_flores(iso_languages: List[str] = None):
 
 def main():
     parser = argparse.ArgumentParser(description="Download and process FLORES-200 dataset")
-    parser.add_argument("--languages", nargs="+", 
+    parser.add_argument("--languages", nargs="+",
                         help="ISO language codes to download (e.g., en fr de). If not specified, all languages will be downloaded.")
-    parser.add_argument("--list-languages", action="store_true", 
+    parser.add_argument("--list-languages", action="store_true",
                         help="List all supported languages and exit")
-    parser.add_argument("--debug", action="store_true", 
+    parser.add_argument("--debug", action="store_true",
                         help="Enable debug mode with more verbose output")
-    
+
     args = parser.parse_args()
-    
+
     if args.list_languages:
         print("Supported languages:")
         lang_mapping = get_flores_language_mapping()
         for iso_code, flores_code in sorted(lang_mapping.items()):
             print(f"  {iso_code}: {flores_code}")
         return
-    
+
     if args.debug:
         logger.setLevel(logging.DEBUG)
         logger.debug("Debug mode enabled")
-    
+
     # Create output directory
     ensure_output_dir()
-    
+
     # Download FLORES dataset
     download_flores(args.languages)
-    
+
     logger.info("Data download and processing complete!")
 
 if __name__ == "__main__":
