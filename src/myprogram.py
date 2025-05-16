@@ -69,9 +69,41 @@ class MyModel:
             sys.path.insert(0, project)
         from model import GPT, GPTConfig
 
-        # ─── hard-coded paths ───────────────────────────────────────────────
-        meta_path  = "data/flores/meta.pkl"
-        ckpt_path  = "out-flores-eng/ckpt.pt"
+        # Try multiple possible locations for meta.pkl and checkpoint
+        # Order matters - first check internal Docker paths, then fall back to relative paths
+        possible_meta_paths = [
+            "/job/data/flores/meta.pkl",   # Check mounted volume first
+            "/job/meta.pkl",               # Check root directory
+            "data/flores/meta.pkl",        # Check relative path
+            "../data/flores/meta.pkl"      # Check relative path from src dir
+        ]
+        
+        meta_path = None
+        for path in possible_meta_paths:
+            if os.path.exists(path):
+                meta_path = path
+                print(f"Found meta.pkl at: {meta_path}")
+                break
+                
+        if meta_path is None:
+            raise FileNotFoundError("Could not find meta.pkl in any of the expected locations")
+            
+        possible_ckpt_paths = [
+            "/job/out-flores-eng/ckpt.pt",  # Check Docker path
+            "/job/ckpt.pt",                 # Check root directory
+            "out-flores-eng/ckpt.pt",       # Check relative path
+            "../out-flores-eng/ckpt.pt"     # Check relative path from src dir
+        ]
+        
+        ckpt_path = None
+        for path in possible_ckpt_paths:
+            if os.path.exists(path):
+                ckpt_path = path
+                print(f"Found ckpt.pt at: {ckpt_path}")
+                break
+                
+        if ckpt_path is None:
+            raise FileNotFoundError("Could not find ckpt.pt in any of the expected locations")
 
         # 1) load vocab mappings
         with open(meta_path, "rb") as f:
