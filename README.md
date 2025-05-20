@@ -55,3 +55,9 @@ python src/myprogram.py test --work_dir work --test_data example/input.txt --tes
 > Values are hardcoded for now. Need to make this dynamic.
 
 
+## Checkpoint 3
+- Make sure dockerfile runs to spec - refer to feedback from Checkpoint 2
+- Train on muliple datasets - different languages
+    - prepare datasets - do we consolidate all the datasets? 
+
+
