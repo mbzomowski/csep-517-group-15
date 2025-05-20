@@ -12,28 +12,38 @@ import numpy as np
 # download the tiny shakespeare dataset
 input_file_path = os.path.join(os.path.dirname(__file__), 'eng_Latn.txt')
 
-with open(input_file_path, 'r') as f:
-    data = f.read()
-print(f"length of dataset in characters: {len(data):,}")
+files = []
 
-# get all the unique characters that occur in this text
-chars = sorted(list(set(data)))
-vocab_size = len(chars)
-print("all the unique characters:", ''.join(chars))
-print(f"vocab size: {vocab_size:,}")
+files.append(input_file_path)
 
-# create a mapping from characters to integers
-stoi = { ch:i for i,ch in enumerate(chars) }
-itos = { i:ch for i,ch in enumerate(chars) }
-def encode(s):
-    return [stoi[c] for c in s] # encoder: take a string, output a list of integers
-def decode(l):
-    return ''.join([itos[i] for i in l]) # decoder: take a list of integers, output a string
+stoi = dict()
+itos = dict()
 
-# create the train and test splits
-n = len(data)
-train_data = data[:int(n*0.9)]
-val_data = data[int(n*0.9):]
+for file in files:
+    with open(file, 'r') as f:
+        data = f.read()
+    print(f"length of dataset in characters: {len(data):,}")
+
+    # get all the unique characters that occur in this text
+    chars = sorted(list(set(data)))
+    vocab_size = len(chars)
+    print("all the unique characters:", ''.join(chars))
+    print(f"vocab size: {vocab_size:,}")
+
+    # create a mapping from characters to integers
+    stoi.update({ch: i for i, ch in enumerate(chars)})
+    itos.update { i:ch for i,ch in enumerate(chars)}
+
+    def encode(s):
+        return [stoi[c] for c in s]  # encoder: take a string, output a list of integers
+
+    def decode(l):
+        return ''.join([itos[i] for i in l])  # decoder: take a list of integers, output a string
+
+    # create the train and test splits
+    n = len(data)
+    train_data = data[:int(n*0.9)]
+    val_data = data[int(n*0.9):]
 
 # encode both to integers
 train_ids = encode(train_data)
