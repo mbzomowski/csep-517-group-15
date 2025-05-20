@@ -105,6 +105,7 @@ class MyModel:
         if ckpt_path is None:
             raise FileNotFoundError("Could not find ckpt.pt in any of the expected locations")
 
+
         # 1) load vocab mappings
         with open(meta_path, "rb") as f:
             meta = pickle.load(f)

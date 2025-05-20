@@ -23,6 +23,7 @@ for arg in sys.argv[1:]:
         assert not arg.startswith('--')
         config_file = arg
         print(f"Overriding config with {config_file}:")
+        print(sys.argv)
         with open(config_file) as f:
             print(f.read())
         exec(open(config_file).read())
