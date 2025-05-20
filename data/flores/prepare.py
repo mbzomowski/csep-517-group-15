@@ -9,15 +9,27 @@ import pickle
 import requests
 import numpy as np
 
+
 # download the tiny shakespeare dataset
-input_file_path = os.path.join(os.path.dirname(__file__), 'eng_Latn.txt')
+eng_input_file_path = os.path.join(os.path.dirname(__file__), 'eng_Latn.txt')
+fra_input_file_path = os.path.join(os.path.dirname(__file__), 'fra_Latn.txt')
+jpn_input_file_path = os.path.join(os.path.dirname(__file__), 'jpn_Jpan.txt')
 
 files = []
 
-files.append(input_file_path)
+files.append(eng_input_file_path)
+files.append(fra_input_file_path)
+files.append(jpn_input_file_path)
 
 stoi = dict()
 itos = dict()
+start = 0
+seen_chars = set()
+
+train_data = ""
+val_data = ""
+vocab_size = 0
+
 
 for file in files:
     with open(file, 'r') as f:
@@ -25,25 +37,34 @@ for file in files:
     print(f"length of dataset in characters: {len(data):,}")
 
     # get all the unique characters that occur in this text
-    chars = sorted(list(set(data)))
-    vocab_size = len(chars)
+    data_set = set(data)
+    data_set = data_set.difference(seen_chars)
+    unique_data_size = len(data_set)
+
+    chars = sorted(list(data_set))
+    vocab_size += len(chars)
     print("all the unique characters:", ''.join(chars))
     print(f"vocab size: {vocab_size:,}")
 
     # create a mapping from characters to integers
-    stoi.update({ch: i for i, ch in enumerate(chars)})
-    itos.update { i:ch for i,ch in enumerate(chars)}
+    stoi.update({ch: i for i, ch in enumerate(chars, start=start)})
+    itos.update({i: ch for i, ch in enumerate(chars, start=start)})
 
-    def encode(s):
-        return [stoi[c] for c in s]  # encoder: take a string, output a list of integers
-
-    def decode(l):
-        return ''.join([itos[i] for i in l])  # decoder: take a list of integers, output a string
-
+    start += unique_data_size
+    seen_chars = seen_chars.union(data_set)
     # create the train and test splits
     n = len(data)
-    train_data = data[:int(n*0.9)]
-    val_data = data[int(n*0.9):]
+    train_data += '\n' + data[:int(n*0.9)]
+    val_data += '\n' + data[int(n*0.9):]
+
+
+def encode(s):
+    return [stoi[c] for c in s]  # encoder: take a string, output a list of integers
+
+
+def decode(l):
+    return ''.join([itos[i] for i in l])  # decoder: take a list of integers, output a string
+
 
 # encode both to integers
 train_ids = encode(train_data)
