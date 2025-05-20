@@ -62,5 +62,3 @@ python src/myprogram.py test --work_dir work --test_data example/input.txt --tes
     - prepare datasets - do we consolidate all the datasets?
 - figuring out how/where the checkpoint is stored and how's it used for prediction
 
-
-
