@@ -1,5 +1,6 @@
 .DS_Store
 data/**/*.txt
+data
 __pycache__/
 *.pt
 work/*.bin
