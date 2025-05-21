@@ -51,13 +51,6 @@ Note:
 - `--eval_interval=100` creates checkpoints more frequently (every 100 iterations)
 - For CUDA systems, you can use larger batch sizes and more iterations
 
-### Sample from the model
-
-```bash
-python sample.py \
-  --out_dir=work \  # Use the same directory as training
-  --device=mps      # or cpu/cuda depending on your system  
-```
 
 NOTE: I have removed the training option from `myprogram.py` since it was janky and using the subprocess. 
 
@@ -70,14 +63,15 @@ python src/myprogram.py test --work_dir work --test_data example/input.txt --tes
 
 ### Evaluating prediction accuracy
 ```bash
-python grade.py pred.txt example/answer.txt --verbose
+python grade.py output/pred.txt example/answer.txt --verbose
 ```
 
 ### Submitting instructions 
-- Run `submit.sh` to package the code into submit directory 
+
+Run `submit.sh` to package the code into submit directory 
   
 ### Validating docker build before submitting
-``bash
+```bash
 docker run --rm -v $PWD/src:/job/src -v $PWD/work:/job/work -v $PWD/example:/job/data -v $PWD/output:/job/output cse517-proj/demo bash /job/src/predict.sh /job/data/input.txt /job/output/pred.txt
 ```
 
