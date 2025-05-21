@@ -3,4 +3,5 @@ data/**/*.txt
 data
 __pycache__/
 *.pt
+*.pkl
 work/*.bin
