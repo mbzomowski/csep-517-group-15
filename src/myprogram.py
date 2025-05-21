@@ -3,7 +3,6 @@ import os
 import string
 import random
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
-import subprocess
 import pickle
 import torch
 
