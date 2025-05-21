@@ -73,6 +73,14 @@ python src/myprogram.py test --work_dir work --test_data example/input.txt --tes
 python grade.py pred.txt example/answer.txt --verbose
 ```
 
+### Submitting instructions 
+- Run `submit.sh` to package the code into submit directory 
+  
+### Validating docker build before submitting
+``bash
+docker run --rm -v $PWD/src:/job/src -v $PWD/work:/job/work -v $PWD/example:/job/data -v $PWD/output:/job/output cse517-proj/demo bash /job/src/predict.sh /job/data/input.txt /job/output/pred.txt
+```
+
 
 ## Checkpoint 3
 - Make sure dockerfile runs to spec - refer to feedback from Checkpoint 2

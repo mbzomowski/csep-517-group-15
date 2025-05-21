@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 import os
-import string
+import sys
 import random
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+import subprocess
 import pickle
 import torch
 
@@ -41,11 +42,7 @@ class MyModel:
 
         # Find meta.pkl file
         possible_meta_paths = [
-            "/job/data/flores/meta.pkl",   # Docker mounted volume
             "/job/meta.pkl",               # Docker root directory
-            "/job/work/meta.pkl",          # Docker work directory
-            "data/flores/meta.pkl",        # Local relative path
-            "../data/flores/meta.pkl",     # From src dir
             "work/meta.pkl"                # work directory
         ]
         
@@ -61,11 +58,7 @@ class MyModel:
             
         # Find checkpoint file
         possible_ckpt_paths = [
-            "/job/out-flores-eng/ckpt.pt",  # Docker path
             "/job/ckpt.pt",                 # Docker root
-            "/job/work/ckpt.pt",            # Docker work directory
-            "out-flores-eng/ckpt.pt",       # Local relative path
-            "../out-flores-eng/ckpt.pt",    # From src dir
             "work/ckpt.pt"                  # work directory
         ]
         
@@ -101,19 +94,33 @@ class MyModel:
 
         # Run prediction
         preds = []
-        all_chars = string.ascii_letters
-        for inp in data:
-            # this model just predicts a random character each time
-            top_guesses = [random.choice(all_chars) for _ in range(3)]
-            preds.append(''.join(top_guesses))
+        with torch.no_grad():
+            for line in data:
+                # encode the input string
+                x = torch.tensor([stoi.get(c, 0) for c in line], dtype=torch.long)[None, :]
+                
+                # get logits for next character only
+                logits, _ = model(x)  # model returns (logits, loss)
+                logits = logits[:, -1, :]  # shape: (1, vocab_size)
+                
+                # get top 3 most likely next characters
+                probs = torch.nn.functional.softmax(logits, dim=-1)
+                top_k = 3
+                v, ix = torch.topk(probs, k=top_k)
+                
+                # convert to characters and join
+                next_chars = [itos[i] for i in ix[0].tolist()]
+                pred = ''.join(next_chars)
+                preds.append(pred)
+
         return preds
 
     @classmethod
     def load(cls, work_dir):
         # this particular model has nothing to load, but for demonstration purposes we will load a blank file
-        with open(os.path.join(work_dir, 'model.checkpoint')) as f:
-            dummy_save = f.read()
-        return MyModel()
+        inst = MyModel()
+        inst.work_dir = work_dir    # ← we save it on the instance
+        return inst
 
 
 if __name__ == '__main__':
