@@ -1,4 +1,9 @@
 .DS_Store
 data/**/*.txt
+data
 __pycache__/
 *.pt
+*.pkl
+work/*.bin
+*.zip
+submit/
