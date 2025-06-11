@@ -12,6 +12,13 @@ class MyModel:
     """
     This is a starter model to get you started. Feel free to modify this file.
     """
+    
+    def __init__(self):
+        self.model = None
+        self.stoi = None
+        self.itos = None
+        self.device = None
+        self.work_dir = None
 
     @classmethod
     def load_training_data(cls):
@@ -32,7 +39,11 @@ class MyModel:
             for p in preds:
                 f.write('{}\n'.format(p))
 
-    def run_pred(self, data): 
+    def _load_model_once(self):
+        """Load model and metadata only once for efficiency"""
+        if self.model is not None:
+            return  # Already loaded
+            
         # Add project root to path to ensure imports work
         here = os.path.dirname(__file__)                    
         project = os.path.abspath(os.path.join(here, os.pardir))  
@@ -75,12 +86,25 @@ class MyModel:
         # Load vocab mappings
         with open(meta_path, "rb") as f:
             meta = pickle.load(f)
-        stoi = meta["stoi"]   # char → idx
-        itos = meta["itos"]   # idx  → char
+        self.stoi = meta["stoi"]   # char → idx
+        self.itos = meta["itos"]   # idx  → char
+        
+        # Setup device for fast inference
+        if torch.cuda.is_available():
+            self.device = torch.device('cuda')
+            print("Using CUDA for inference")
+        elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+            self.device = torch.device('mps')
+            print("Using MPS for inference")
+            # Set MPS fallback for unsupported operations
+            torch.backends.mps.allow_fallback = True
+        else:
+            self.device = torch.device('cpu')
+            print("Using CPU for inference")
 
         # Load checkpoint and rebuild model
-        ckpt = torch.load(ckpt_path, map_location="cpu")
-        model = GPT(GPTConfig(**ckpt["model_args"]))
+        ckpt = torch.load(ckpt_path, map_location=self.device)
+        self.model = GPT(GPTConfig(**ckpt["model_args"]))
         
         # Fix the state dict keys by removing '_orig_mod' prefix
         state_dict = ckpt["model"]
@@ -89,31 +113,74 @@ class MyModel:
             if k.startswith(unwanted_prefix):
                 state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
                 
-        model.load_state_dict(state_dict)
-        model.eval()
+        self.model.load_state_dict(state_dict)
+        self.model.to(self.device)
+        self.model.eval()
+        
+        # Compile model for faster inference (if supported and stable)
+        # Skip compilation on MPS as it's still experimental
+        if self.device.type != 'mps':
+            try:
+                self.model = torch.compile(self.model, mode='reduce-overhead')
+                print("Model compiled for faster inference")
+            except:
+                print("Model compilation not available, using uncompiled model")
+        else:
+            print("Skipping model compilation on MPS (experimental), using uncompiled model")
 
-        # Run prediction
-        preds = []
+    def run_pred(self, data): 
+        """Optimized prediction with batching and device acceleration"""
+        self._load_model_once()
+        
+        # Batch process for efficiency
+        # Use smaller batch size for MPS to avoid memory issues
+        batch_size = 16 if self.device.type == 'mps' else 32
+        all_preds = []
+        
         with torch.no_grad():
-            for line in data:
-                # encode the input string
-                x = torch.tensor([stoi.get(c, 0) for c in line], dtype=torch.long)[None, :]
+            for i in range(0, len(data), batch_size):
+                batch_data = data[i:i + batch_size]
+                batch_preds = self._predict_batch(batch_data)
+                all_preds.extend(batch_preds)
                 
-                # get logits for next character only
-                logits, _ = model(x)  # model returns (logits, loss)
-                logits = logits[:, -1, :]  # shape: (1, vocab_size)
-                
-                # get top 3 most likely next characters
-                probs = torch.nn.functional.softmax(logits, dim=-1)
-                top_k = 3
-                v, ix = torch.topk(probs, k=top_k)
-                
-                # convert to characters and join
-                next_chars = [itos[i] for i in ix[0].tolist()]
-                pred = ''.join(next_chars)
-                preds.append(pred)
-
-        return preds
+        return all_preds
+    
+    def _predict_batch(self, batch_data):
+        """Process a batch of inputs efficiently"""
+        batch_preds = []
+        
+        # Find max length for padding
+        max_len = max(len(line) for line in batch_data)
+        
+        # Encode all inputs in the batch
+        batch_encoded = []
+        for line in batch_data:
+            encoded = [self.stoi.get(c, 0) for c in line]
+            # Pad to max length
+            padded = encoded + [0] * (max_len - len(encoded))
+            batch_encoded.append(padded)
+        
+        # Convert to tensor and move to device
+        x = torch.tensor(batch_encoded, dtype=torch.long, device=self.device)
+        
+        # Get predictions for the batch
+        logits, _ = self.model(x)  # Shape: (batch_size, seq_len, vocab_size)
+        
+        # Get logits for the last position of each sequence
+        last_logits = logits[:, -1, :]  # Shape: (batch_size, vocab_size)
+        
+        # Get top 3 most likely next characters for each input
+        probs = torch.nn.functional.softmax(last_logits, dim=-1)
+        top_k = 3
+        v, ix = torch.topk(probs, k=top_k, dim=-1)  # Shape: (batch_size, top_k)
+        
+        # Convert to characters
+        for i, indices in enumerate(ix):
+            next_chars = [self.itos[idx.item()] for idx in indices]
+            pred = ''.join(next_chars)
+            batch_preds.append(pred)
+            
+        return batch_preds
 
     @classmethod
     def load(cls, work_dir):
