@@ -2,7 +2,7 @@
 # optimized for better accuracy and runtime
 
 out_dir = 'work'
-eval_interval = 1000  # Less frequent evaluation for faster training
+eval_interval = 500   # More frequent checkpoints to catch peak performance
 eval_iters = 100      # Fewer evaluation iterations
 log_interval = 50     # Less frequent logging
 
@@ -26,12 +26,12 @@ dropout = 0.05    # Lower dropout for better learning on complex data
 
 # Optimized learning rate schedule for better accuracy
 learning_rate = 3e-4    # Lower for more stable training
-max_iters = 15000       # Balanced training duration for M1
-lr_decay_iters = 15000  # Match max_iters
+max_iters = 3500        # Stop near peak performance (based on iter 3000 results)
+lr_decay_iters = 3500   # Match max_iters
 min_lr = 3e-5          # Lower minimum learning rate
 beta2 = 0.95           # Standard value for larger models
 
-warmup_iters = 1500    # More warmup for stability
+warmup_iters = 500     # Shorter warmup for shorter training
 
 # Performance optimizations
 compile = True         # Enable PyTorch 2.0 compilation for speedup
